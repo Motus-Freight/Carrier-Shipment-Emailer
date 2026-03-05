@@ -1,0 +1,95 @@
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Carrier Shipment Emailer</title>
+    <style>
+      :root { --bg:#fff; --text:#111; --muted:#666; --border:#e6e6e6; --primary:#2563eb; --primary-contrast:#fff; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 12px; width: 520px; color: var(--text); position: relative; }
+      .top-right-logo { position: absolute; top: 8px; right: 8px; width: 50px; height: 50px; }
+      h1 { font-size: 16px; margin: 0 0 8px; color: #0f172a; }
+      #url { font-size: 12px; word-break: break-all; color: #333; }
+      #validation { font-size: 12px; margin-top: 6px; color: var(--muted); }
+      .ok { color: #0b7; }
+      .bad { color: #c00; }
+
+      .toolbar { margin-top: 8px; display: grid; grid-template-columns: 1fr; align-items: start; gap: 8px; }
+      .toolbar-actions { display: grid; grid-template-columns: 1fr; gap: 6px; }
+      #token-label { font-size: 12px; color: var(--muted); }
+      .token-value { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; color: #334155; overflow-wrap: anywhere; word-break: break-all; display: inline; }
+
+      .btn { appearance: none; border: 1px solid var(--border); background: #f8fafc; color: #0f172a; font-size: 12px; padding: 6px 10px; border-radius: 6px; cursor: pointer; transition: background .15s ease, border-color .15s ease, box-shadow .15s ease; }
+      .btn:hover { background: #eef2f7; }
+      .btn:disabled { opacity: .6; cursor: not-allowed; }
+      .btn-primary { background: var(--primary); color: var(--primary-contrast); border-color: transparent; }
+      .btn-primary:hover { filter: brightness(0.95); }
+      .btn-secondary { background: #f8fafc; }
+
+      .dev-toggle { margin-top: 6px; font-size: 12px; color: #333; }
+      .dev-toggle .toggle-row { display: flex; align-items: center; gap: 8px; }
+      .dev-toggle .toggle-input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+      .dev-toggle .toggle { width: 44px; height: 24px; background: #d1d5db; border: 1px solid var(--border); border-radius: 9999px; position: relative; cursor: pointer; transition: background .2s ease, border-color .2s ease; }
+      .dev-toggle .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.15); transition: transform .2s ease, width .2s ease; }
+      .dev-toggle .toggle-input:checked + .toggle { background: #e3683c; border-color: #e3683c; }
+      /* Developer panel buttons (Copy token, Download JSON) */
+      #dev-panel .toolbar-actions .btn { background: #e3683c; color: #fff; border-color: #e3683c; }
+      #dev-panel .toolbar-actions .btn:hover { filter: brightness(0.95); }
+      .dev-toggle .toggle-input:checked + .toggle::after { transform: translateX(20px); }
+      .dev-toggle .toggle:active::after { width: 22px; }
+      .hidden { display: none; }
+
+      #summary { font-size: 12px; border: 1px solid var(--border); padding: 10px; margin-top: 10px; color: #222; border-radius: 10px; background: var(--bg); box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+      #summary .row { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 6px; padding: 2px 0; }
+      #summary .label { color: var(--muted); }
+
+      .actions { margin-top: 10px; display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+      .btn-primary-blue { background: #4366ab; color: #fff; border-color: #4366ab; }
+      .btn-primary-blue:hover { filter: brightness(0.95); }
+      .btn-accent { background: #e3683c; color: #fff; border-color: #e3683c; }
+      .btn-accent:hover { filter: brightness(0.95); }
+      #email-text { margin-top: 8px; width: 100%; min-height: 220px; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; box-sizing: border-box; border: 1px solid var(--border); border-radius: 10px; padding: 10px; outline: none; }
+      #email-text:focus { box-shadow: 0 0 0 3px rgba(37,99,235,.15); border-color: #c7d2fe; }
+    </style>
+  </head>
+  <body>
+    <img src="hello_extensions.png" class="top-right-logo" alt="Logo">
+    <h1>Carrier Shipment Emailer</h1>
+    <div class="dev-toggle">
+      <div class="toggle-row">
+        <input type="checkbox" id="dev-toggle" class="toggle-input" />
+        <label for="dev-toggle" class="toggle" aria-label="Developer Mode"></label>
+        <span>Developer Mode</span>
+      </div>
+    </div>
+    <div id="dev-panel" class="hidden">
+      <div id="url">Loading…</div>
+      <div id="validation">Checking…</div>
+      <div class="toolbar">
+        <div id="token-label">Token: <span id="token-value" class="token-value">Not captured</span></div>
+        <div class="toolbar-actions">
+          <button id="copy-token" class="btn btn-secondary">Copy token</button>
+          <button id="download-json" class="btn btn-secondary" disabled>Download JSON</button>
+          <button id="download-shipment-list" class="btn btn-secondary" disabled>Download Shipment List</button>
+        </div>
+      </div>
+    </div>
+    <div id="summary">
+      <div class="row"><span class="label"><input type="checkbox" id="chk-ship-locations" /> Ship Locations:</span><span id="ship-locations">—</span></div>
+      <div class="row"><span class="label"><input type="checkbox" id="chk-weight" /> Weight:</span><span id="weight">—</span></div>
+      <div class="row"><span class="label"><input type="checkbox" id="chk-weight-unit" /> WeightUnit:</span><span id="weight-unit">—</span></div>
+      <div class="row"><span class="label"><input type="checkbox" id="chk-commodity" /> Commodity:</span><span id="commodity">—</span></div>
+      <div class="row"><span class="label"><input type="checkbox" id="chk-temperature" /> Temperature:</span><span id="temperature">—</span></div>
+      <div class="row"><span class="label"><input type="checkbox" id="chk-temperature-unit" /> TemperatureUnit:</span><span id="temperature-unit">—</span></div>
+      <div class="row"><span class="label"><input type="checkbox" id="chk-services" /> Services:</span><span id="services">—</span></div>
+      <div class="row"><span class="label"><input type="checkbox" id="chk-rate" /> Rate:</span><span id="rate">—</span></div>
+    </div>
+    <div class="actions">
+      <div style="display:flex; gap:8px;">
+        <button id="generate-email" class="btn btn-primary-blue">Generate Email</button>
+        <button id="copy-email" class="btn btn-accent">Copy Email</button>
+      </div>
+    </div>
+    <textarea id="email-text" placeholder="Email will appear here..."></textarea>
+    <script src="shipmentList.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
